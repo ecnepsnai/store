@@ -32,8 +32,8 @@ Deleting an object
 
 Iterating over all objects
 
-	store.ForEach(func(key []byte, idx int, value []byte) error {
-		username := string(key)
+	store.ForEach(func(key string, idx int, value []byte) error {
+		username := key
 		// Do something with each object
 		return nil
 	})
@@ -127,14 +127,14 @@ func (s *Store) Count() int {
 }
 
 // ForEach iterate over each object in the store
-func (s *Store) ForEach(cb func(key []byte, idx int, value []byte) error) error {
+func (s *Store) ForEach(cb func(key string, idx int, value []byte) error) error {
 	return s.client.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
 		s.console.Debug("Foreach %s", s.Name)
 		var i = -1
 		return bucket.ForEach(func(key []byte, value []byte) error {
 			i++
-			return cb(key, i, value)
+			return cb(string(key), i, value)
 		})
 	})
 }
@@ -145,6 +145,21 @@ func (s *Store) Write(key string, value []byte) error {
 		bucket := tx.Bucket(s.bucket.name)
 		s.console.Debug("Set %s.%s", s.Name, key)
 		return bucket.Put([]byte(key), value)
+	})
+}
+
+// Truncate remove all keys from the store
+func (s *Store) Truncate() error {
+	return s.client.Update(func(tx *bolt.Tx) error {
+		if err := tx.DeleteBucket(s.bucket.name); err != nil {
+			return err
+		}
+		s.console.Debug("Deleting bucket '%s'", s.bucket.name)
+		if _, err := tx.CreateBucket(s.bucket.name); err != nil {
+			return err
+		}
+		s.console.Debug("Creating bucket '%s'", s.bucket.name)
+		return nil
 	})
 }
 
