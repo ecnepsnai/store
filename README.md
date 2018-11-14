@@ -13,18 +13,11 @@ go get github.com/ecnepsnai/store
 package main
 
 import (
-    "github.com/ecnepsnai/console"
     "github.com/ecnepsnai/store"
 )
 
 func main() {
-    Console, err := console.New(logPath, console.LevelDebug)
-    if err != nil {
-        panic(err.Error())
-    }
-
-    // A console instance is required for store
-    store, err := New("data", "users", &Console)
+    store, err := New("data", "users")
     if err != nil {
         panic(err.Error())
     }

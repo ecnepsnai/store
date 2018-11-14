@@ -3,8 +3,7 @@ Package store makes working with BoltDB easier
 
 Creating a store
 
-	// A console instance is required for store
-	store, err := New("data", "users", &Console)
+	store, err := New("data", "users")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -46,7 +45,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/ecnepsnai/console"
+	"github.com/ecnepsnai/logtic"
 )
 
 type bucket struct {
@@ -55,44 +54,44 @@ type bucket struct {
 
 // Store describes a store object
 type Store struct {
-	path    string
-	Name    string
-	bucket  bucket
-	client  *bolt.DB
-	console *console.Console
+	path   string
+	Name   string
+	bucket bucket
+	client *bolt.DB
+	log    *logtic.Source
 }
 
 // New open a new store. Write the store data in the provided directory
-func New(dataDir string, storeName string, output *console.Console) (*Store, error) {
+func New(dataDir string, storeName string) (*Store, error) {
 	s := Store{
 		path: dataDir + "/" + storeName + ".db",
 		Name: storeName,
 		bucket: bucket{
 			name: []byte(storeName),
 		},
-		console: output,
+		log: logtic.Connect("store:" + storeName),
 	}
 
 	client, err := bolt.Open(s.path, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
-		s.console.Error("Error opening store '%s': %s", s.path, err.Error())
+		s.log.Error("Error opening store '%s': %s", s.path, err.Error())
 		return nil, err
 	}
 	s.client = client
 	err = client.Update(func(tx *bolt.Tx) error {
 		if tx.Bucket(s.bucket.name) == nil {
-			s.console.Debug("Creating bucket '%s'", s.Name)
+			s.log.Debug("Creating bucket '%s'", s.Name)
 			_, txerr := tx.CreateBucketIfNotExists(s.bucket.name)
 			return txerr
 		}
 		return nil
 	})
 	if err != nil {
-		s.console.Error("Error creating bucket '%s': %s", s.Name, err.Error())
+		s.log.Error("Error creating bucket '%s': %s", s.Name, err.Error())
 		return nil, err
 	}
 
-	s.console.Debug("'%s' Opened", s.Name)
+	s.log.Debug("'%s' Opened", s.Name)
 	return &s, nil
 }
 
@@ -109,7 +108,7 @@ func (s *Store) Get(key string) []byte {
 	s.client.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
 		value = bucket.Get([]byte(key))
-		s.console.Debug("Get %s.%s", s.Name, key)
+		s.log.Debug("Get %s.%s", s.Name, key)
 		return nil
 	})
 	return value
@@ -130,7 +129,7 @@ func (s *Store) Count() int {
 func (s *Store) ForEach(cb func(key string, idx int, value []byte) error) error {
 	return s.client.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
-		s.console.Debug("Foreach %s", s.Name)
+		s.log.Debug("Foreach %s", s.Name)
 		var i = -1
 		return bucket.ForEach(func(key []byte, value []byte) error {
 			i++
@@ -143,7 +142,7 @@ func (s *Store) ForEach(cb func(key string, idx int, value []byte) error) error 
 func (s *Store) Write(key string, value []byte) error {
 	return s.client.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
-		s.console.Debug("Set %s.%s", s.Name, key)
+		s.log.Debug("Set %s.%s", s.Name, key)
 		return bucket.Put([]byte(key), value)
 	})
 }
@@ -154,11 +153,11 @@ func (s *Store) Truncate() error {
 		if err := tx.DeleteBucket(s.bucket.name); err != nil {
 			return err
 		}
-		s.console.Debug("Deleting bucket '%s'", s.bucket.name)
+		s.log.Debug("Deleting bucket '%s'", s.bucket.name)
 		if _, err := tx.CreateBucket(s.bucket.name); err != nil {
 			return err
 		}
-		s.console.Debug("Creating bucket '%s'", s.bucket.name)
+		s.log.Debug("Creating bucket '%s'", s.bucket.name)
 		return nil
 	})
 }
@@ -167,7 +166,7 @@ func (s *Store) Truncate() error {
 func (s *Store) Delete(key string) error {
 	return s.client.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
-		s.console.Debug("Delete %s.%s", s.Name, key)
+		s.log.Debug("Delete %s.%s", s.Name, key)
 		return bucket.Delete([]byte(key))
 	})
 }
@@ -175,7 +174,7 @@ func (s *Store) Delete(key string) error {
 // CopyTo make a hot copy of the store to the given writer
 func (s *Store) CopyTo(writer io.Writer) error {
 	return s.client.View(func(tx *bolt.Tx) error {
-		s.console.Debug("Copy %s", s.Name)
+		s.log.Debug("Copy %s", s.Name)
 		return tx.Copy(writer)
 	})
 }
@@ -183,7 +182,7 @@ func (s *Store) CopyTo(writer io.Writer) error {
 // BackupTo make a hot backup of the store and save it to the specified file
 func (s *Store) BackupTo(file string) error {
 	return s.client.View(func(tx *bolt.Tx) error {
-		s.console.Debug("Backup %s -> %s", s.Name, file)
+		s.log.Debug("Backup %s -> %s", s.Name, file)
 		return tx.CopyFile(file, 0644)
 	})
 }

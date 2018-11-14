@@ -7,8 +7,6 @@ import (
 	"os"
 	"path"
 	"testing"
-
-	"github.com/ecnepsnai/console"
 )
 
 var s *Store
@@ -19,10 +17,7 @@ func setup() error {
 	if err != nil {
 		return err
 	}
-	console, _ := console.New(console.Config{
-		PrintLevel: console.LevelDebug,
-	})
-	st, err := New(tmpDir, "store", console)
+	st, err := New(tmpDir, "store")
 	if err != nil {
 		return err
 	}
