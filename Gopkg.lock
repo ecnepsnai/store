@@ -10,12 +10,12 @@
   version = "v1.3.1"
 
 [[projects]]
-  digest = "1:69f380b7807f8500092fb3639c7e0e190eb9b467afb666145e94db45340240a0"
+  digest = "1:f80f3f1588697121a02b2d43e9b4c74f658bc3d82691fa21243ee3bc3c216942"
   name = "github.com/ecnepsnai/logtic"
   packages = ["."]
   pruneopts = "UT"
-  revision = "cf6b7cdd8b3d5e604dff2a170c47b0f1f1a80077"
-  version = "1.0.0"
+  revision = "570fc158b62740b6d94727934d1f05b4bcccc002"
+  version = "1.0.1"
 
 [[projects]]
   digest = "1:865079840386857c809b72ce300be7580cb50d3d3129ce11bf9aa6ca2bc1934a"
