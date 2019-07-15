@@ -1,4 +1,10 @@
 # store
+
+[![Go Report Card](https://goreportcard.com/badge/github.com/ecnepsnai/store?style=flat-square)](https://goreportcard.com/report/github.com/ecnepsnai/store)
+[![Godoc](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](https://godoc.org/github.com/ecnepsnai/store)
+[![Releases](https://img.shields.io/github/release/ecnepsnai/store/all.svg?style=flat-square)](https://github.com/ecnepsnai/store/releases)
+[![LICENSE](https://img.shields.io/github/license/ecnepsnai/store.svg?style=flat-square)](https://github.com/ecnepsnai/store/blob/master/LICENSE)
+
 A go package to make working with BoltDB easier
 
 # Installation

@@ -1,5 +1,5 @@
 /*
-Package store makes working with BoltDB easier
+Package store makes working with bboltDB easier
 
 Creating a store
 
@@ -44,8 +44,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/ecnepsnai/logtic"
+	"github.com/etcd-io/bbolt"
 )
 
 type bucket struct {
@@ -57,7 +57,7 @@ type Store struct {
 	path   string
 	Name   string
 	bucket bucket
-	client *bolt.DB
+	client *bbolt.DB
 	log    *logtic.Source
 }
 
@@ -72,13 +72,13 @@ func New(dataDir string, storeName string) (*Store, error) {
 		log: logtic.Connect("store:" + storeName),
 	}
 
-	client, err := bolt.Open(s.path, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	client, err := bbolt.Open(s.path, 0600, &bbolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		s.log.Error("Error opening store '%s': %s", s.path, err.Error())
 		return nil, err
 	}
 	s.client = client
-	err = client.Update(func(tx *bolt.Tx) error {
+	err = client.Update(func(tx *bbolt.Tx) error {
 		if tx.Bucket(s.bucket.name) == nil {
 			s.log.Debug("Creating bucket '%s'", s.Name)
 			_, txerr := tx.CreateBucketIfNotExists(s.bucket.name)
@@ -105,7 +105,7 @@ func (s *Store) Close() {
 // Get get a specific key from the store
 func (s *Store) Get(key string) []byte {
 	var value []byte
-	s.client.View(func(tx *bolt.Tx) error {
+	s.client.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
 		value = bucket.Get([]byte(key))
 		s.log.Debug("Get %s.%s", s.Name, key)
@@ -117,7 +117,7 @@ func (s *Store) Get(key string) []byte {
 // Count get the number of keys in the store
 func (s *Store) Count() int {
 	var count int
-	s.client.View(func(tx *bolt.Tx) error {
+	s.client.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
 		count = bucket.Stats().KeyN
 		return nil
@@ -127,7 +127,7 @@ func (s *Store) Count() int {
 
 // ForEach iterate over each object in the store
 func (s *Store) ForEach(cb func(key string, idx int, value []byte) error) error {
-	return s.client.View(func(tx *bolt.Tx) error {
+	return s.client.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
 		s.log.Debug("Foreach %s", s.Name)
 		var i = -1
@@ -140,7 +140,7 @@ func (s *Store) ForEach(cb func(key string, idx int, value []byte) error) error 
 
 // Write write a new object to the store
 func (s *Store) Write(key string, value []byte) error {
-	return s.client.Update(func(tx *bolt.Tx) error {
+	return s.client.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
 		s.log.Debug("Set %s.%s", s.Name, key)
 		return bucket.Put([]byte(key), value)
@@ -149,7 +149,7 @@ func (s *Store) Write(key string, value []byte) error {
 
 // Truncate remove all keys from the store
 func (s *Store) Truncate() error {
-	return s.client.Update(func(tx *bolt.Tx) error {
+	return s.client.Update(func(tx *bbolt.Tx) error {
 		if err := tx.DeleteBucket(s.bucket.name); err != nil {
 			return err
 		}
@@ -164,7 +164,7 @@ func (s *Store) Truncate() error {
 
 // Delete delete a specific object from the store
 func (s *Store) Delete(key string) error {
-	return s.client.Update(func(tx *bolt.Tx) error {
+	return s.client.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
 		s.log.Debug("Delete %s.%s", s.Name, key)
 		return bucket.Delete([]byte(key))
@@ -173,7 +173,7 @@ func (s *Store) Delete(key string) error {
 
 // CopyTo make a hot copy of the store to the given writer
 func (s *Store) CopyTo(writer io.Writer) error {
-	return s.client.View(func(tx *bolt.Tx) error {
+	return s.client.View(func(tx *bbolt.Tx) error {
 		s.log.Debug("Copy %s", s.Name)
 		return tx.Copy(writer)
 	})
@@ -181,7 +181,7 @@ func (s *Store) CopyTo(writer io.Writer) error {
 
 // BackupTo make a hot backup of the store and save it to the specified file
 func (s *Store) BackupTo(file string) error {
-	return s.client.View(func(tx *bolt.Tx) error {
+	return s.client.View(func(tx *bbolt.Tx) error {
 		s.log.Debug("Backup %s -> %s", s.Name, file)
 		return tx.CopyFile(file, 0644)
 	})
