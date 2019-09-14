@@ -72,7 +72,7 @@ func New(dataDir string, storeName string) (*Store, error) {
 		log: logtic.Connect("store:" + storeName),
 	}
 
-	client, err := bbolt.Open(s.path, 0600, &bbolt.Options{Timeout: 1 * time.Second})
+	client, err := bbolt.Open(s.path, 0644, &bbolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		s.log.Error("Error opening store '%s': %s", s.path, err.Error())
 		return nil, err
