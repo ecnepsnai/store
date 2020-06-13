@@ -1,161 +1,274 @@
-package store
+package store_test
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/ecnepsnai/store"
 )
 
-var s *Store
-var dir *string
+var tmpDir string
 
-func setup() error {
-	tmpDir, err := ioutil.TempDir("", "store")
+func testSetup() {
+	tmp, err := ioutil.TempDir("", "store")
 	if err != nil {
-		return err
+		panic(err)
 	}
-	st, err := New(tmpDir, "store")
-	if err != nil {
-		return err
-	}
-
-	s = st
-	dir = &tmpDir
-	return nil
+	tmpDir = tmp
 }
 
-func teardown() {
-	s.Close()
-	os.RemoveAll(*dir)
+func testTeardown() {
+	os.RemoveAll(tmpDir)
 }
 
 func TestMain(m *testing.M) {
-	if err := setup(); err != nil {
-		fmt.Printf("Error opening store: %s\n", err.Error())
-		os.Exit(1)
-	}
-
+	testSetup()
 	retCode := m.Run()
-	teardown()
+	testTeardown()
 	os.Exit(retCode)
 }
 
-func TestReadWrite(t *testing.T) {
-	testString := "hello world"
-	data := []byte(testString)
+func TestNew(t *testing.T) {
+	t.Parallel()
 
-	if err := s.Write("key1", data); err != nil {
-		t.Errorf("Error writing key: %s", err.Error())
-		t.Fail()
-	}
-
-	retData := s.Get("key1")
-	if string(retData) != testString {
-		t.Errorf("Return data was incorrect. Expected '%s' got '%s'", testString, retData)
-		t.Fail()
-	}
-}
-
-func TestMissingKey(t *testing.T) {
-	data := s.Get("doesn't exist!")
-	if data != nil {
-		t.Errorf("Return data should be nil, got '%x'", data)
-		t.Fail()
-	}
-}
-
-func TestCount(t *testing.T) {
-	count := s.Count()
-	if count != 1 {
-		t.Errorf("Item count was not expected. Got %d, expected 1", count)
-		t.Fail()
-	}
-}
-
-func TestForEach(t *testing.T) {
-	i := 0
-	err := s.ForEach(func(key string, idx int, value []byte) error {
-		if key == "" {
-			t.Errorf("key is empty")
-			t.Fail()
-		}
-		if idx < 0 {
-			t.Errorf("item index is less than 0")
-			t.Fail()
-		}
-		if value == nil {
-			t.Errorf("value is nil")
-			t.Fail()
-		}
-
-		i++
-
-		return nil
-	})
-
-	if i == 0 {
-		t.Errorf("foreach cb never invoked")
-		t.Fail()
-	}
-
+	store, err := store.New(tmpDir, "TestNew")
 	if err != nil {
-		t.Errorf("Error performing foreach: %s", err.Error())
-		t.Fail()
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+}
+
+func TestWrite(t *testing.T) {
+	t.Parallel()
+
+	store, err := store.New(tmpDir, "TestWrite")
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+
+	if err := store.Write("hello", []byte("world")); err != nil {
+		t.Fatalf("Error writing value: %s", err.Error())
+	}
+}
+
+func TestGet(t *testing.T) {
+	t.Parallel()
+
+	store, err := store.New(tmpDir, "TestGet")
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+
+	key := "hello"
+	value := "world"
+
+	if err := store.Write(key, []byte(value)); err != nil {
+		t.Fatalf("Error writing value: %s", err.Error())
+	}
+
+	result := store.Get(key)
+	if result == nil {
+		t.Fatalf("No value returned for key")
+	}
+	if string(result) != value {
+		t.Fatalf("Incorrect value returned for key")
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	t.Parallel()
+
+	store, err := store.New(tmpDir, "TestUpdate")
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+
+	key := "hello"
+	value := "world"
+
+	if err := store.Write(key, []byte(value)); err != nil {
+		t.Fatalf("Error writing value: %s", err.Error())
+	}
+
+	result := store.Get(key)
+	if result == nil {
+		t.Fatalf("No value returned for key")
+	}
+	if string(result) != value {
+		t.Fatalf("Incorrect value returned for key")
+	}
+
+	value = "new"
+
+	if err := store.Write(key, []byte(value)); err != nil {
+		t.Fatalf("Error writing value: %s", err.Error())
+	}
+
+	result = store.Get(key)
+	if result == nil {
+		t.Fatalf("No value returned for key")
+	}
+	if string(result) != value {
+		t.Fatalf("Incorrect value returned for key")
 	}
 }
 
 func TestDelete(t *testing.T) {
-	key := "doomed"
+	t.Parallel()
 
-	if err := s.Write(key, []byte("DOOMED!")); err != nil {
-		t.Errorf("Error writing key: %s", err.Error())
-		t.Fail()
+	store, err := store.New(tmpDir, "TestDelete")
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+
+	key := "hello"
+	value := "world"
+
+	if err := store.Write(key, []byte(value)); err != nil {
+		t.Fatalf("Error writing value: %s", err.Error())
 	}
 
-	if err := s.Delete(key); err != nil {
-		t.Errorf("Error deleting key: %s", err.Error())
-		t.Fail()
+	result := store.Get(key)
+	if result == nil {
+		t.Fatalf("No value returned for key")
+	}
+	if string(result) != value {
+		t.Fatalf("Incorrect value returned for key")
 	}
 
-	data := s.Get(key)
-	if data != nil {
-		t.Errorf("Key '%s' should not exist, has value '%s'", key, data)
-		t.Fail()
+	if err := store.Delete(key); err != nil {
+		t.Fatalf("Error deleting object: %s", err.Error())
+	}
+
+	result = store.Get(key)
+	if result != nil {
+		t.Fatalf("Unexpected value for deleted key")
+	}
+}
+
+func TestCount(t *testing.T) {
+	t.Parallel()
+
+	store, err := store.New(tmpDir, "TestCount")
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+
+	if err := store.Write("hello", []byte("world")); err != nil {
+		t.Fatalf("Error writing value: %s", err.Error())
+	}
+
+	if store.Count() != 1 {
+		t.Fatalf("Incorrect object count returned")
+	}
+}
+
+func TestForeach(t *testing.T) {
+	t.Parallel()
+
+	store, err := store.New(tmpDir, "TestForeach")
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+
+	if err := store.Write("hello", []byte("world")); err != nil {
+		t.Fatalf("Error writing value: %s", err.Error())
+	}
+
+	count := 0
+	store.ForEach(func(key string, idx int, value []byte) error {
+		count++
+		return nil
+	})
+
+	if count != 1 {
+		t.Fatalf("Incorrect object count returned")
+	}
+}
+
+func TestForeachError(t *testing.T) {
+	t.Parallel()
+
+	store, err := store.New(tmpDir, "TestForeachError")
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+
+	if err := store.Write("hello", []byte("world")); err != nil {
+		t.Fatalf("Error writing value: %s", err.Error())
+	}
+
+	err = store.ForEach(func(key string, idx int, value []byte) error {
+		return fmt.Errorf("boo")
+	})
+	if err == nil {
+		t.Fatalf("No error seen when one expected")
 	}
 }
 
 func TestTruncate(t *testing.T) {
-	if err := s.Truncate(); err != nil {
-		t.Errorf("Error truncating store: %s", err.Error())
-		t.Fail()
+	t.Parallel()
+
+	store, err := store.New(tmpDir, "TestTruncate")
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+
+	if err := store.Write("hello", []byte("world")); err != nil {
+		t.Fatalf("Error writing value: %s", err.Error())
 	}
 
-	data := s.Get("key1")
-	if data != nil {
-		t.Errorf("Key should not exist, has value '%s'", data)
-		t.Fail()
+	if store.Count() != 1 {
+		t.Fatalf("Incorrect object count returned")
+	}
+
+	if err := store.Truncate(); err != nil {
+		t.Fatalf("Error truncating table: %s", err.Error())
+	}
+
+	if store.Count() != 0 {
+		t.Fatalf("Incorrect object count returned")
 	}
 }
 
-func TestBackup(t *testing.T) {
-	f, err := os.Create(path.Join(*dir, "writer"))
-	if err != nil {
-		t.Errorf("Error creating writer: %s", err.Error())
-		t.Fail()
-	}
-	defer f.Close()
-	w := bufio.NewWriter(f)
-	defer w.Flush()
-	if err = s.CopyTo(w); err != nil {
-		t.Errorf("Error copying store data: %s", err.Error())
-		t.Fail()
-	}
+func TestCopyTo(t *testing.T) {
+	t.Parallel()
 
-	if err = s.BackupTo(path.Join(*dir, "backup")); err != nil {
-		t.Errorf("Error backing up store: %s", err.Error())
-		t.Fail()
+	store, err := store.New(tmpDir, "TestCopyTo")
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+
+	var b bytes.Buffer
+
+	if err := store.CopyTo(&b); err != nil {
+		t.Fatalf("Error copying store to writer: %s", err.Error())
+	}
+}
+
+func TestBackupTo(t *testing.T) {
+	t.Parallel()
+
+	store, err := store.New(tmpDir, "TestBackupTo")
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer store.Close()
+
+	if err := store.BackupTo(path.Join(tmpDir, "store.backup")); err != nil {
+		t.Fatalf("Error copying store to file: %s", err.Error())
 	}
 }

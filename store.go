@@ -1,51 +1,15 @@
 /*
-Package store makes working with bboltDB easier
-
-Creating a store
-
-	store, err := New("data", "users")
-	if err != nil {
-		panic(err.Error())
-	}
-	// Make sure to close your store when you're finished
-	defer store.Close()
-
-Getting an object
-
-	data := store.Get("ecnepsnai")
-	if data != nil {
-		// Do something with your data
-	}
-
-Setting an object
-
-	if err = store.Write("ecnepsnai", []byte("is awesome")); err != nil {
-		panic(err.Error())
-	}
-
-Deleting an object
-
-	if err = store.Delete("test"); err != nil {
-		panic(err.Error())
-	}
-
-Iterating over all objects
-
-	store.ForEach(func(key string, idx int, value []byte) error {
-		username := key
-		// Do something with each object
-		return nil
-	})
-
+Package store provides a simple interface for working with the key-value store bbolt.
 */
 package store
 
 import (
 	"io"
+	"path"
 	"time"
 
 	"github.com/ecnepsnai/logtic"
-	"github.com/etcd-io/bbolt"
+	"go.etcd.io/bbolt"
 )
 
 type bucket struct {
@@ -54,22 +18,22 @@ type bucket struct {
 
 // Store describes a store object
 type Store struct {
-	path   string
 	Name   string
+	path   string
 	bucket bucket
 	client *bbolt.DB
 	log    *logtic.Source
 }
 
-// New open a new store. Write the store data in the provided directory
+// New will create or open a store with the given store name at the specified data directory.
 func New(dataDir string, storeName string) (*Store, error) {
 	s := Store{
-		path: dataDir + "/" + storeName + ".db",
+		path: path.Join(dataDir, storeName+".db"),
 		Name: storeName,
 		bucket: bucket{
 			name: []byte(storeName),
 		},
-		log: logtic.Connect("store:" + storeName),
+		log: logtic.Connect("store(" + storeName + ")"),
 	}
 
 	client, err := bbolt.Open(s.path, 0644, &bbolt.Options{Timeout: 1 * time.Second})
@@ -95,14 +59,14 @@ func New(dataDir string, storeName string) (*Store, error) {
 	return &s, nil
 }
 
-// Close close the store
+// Close will close the store
 func (s *Store) Close() {
 	if s.client != nil {
 		s.client.Close()
 	}
 }
 
-// Get get a specific key from the store
+// Get will fetch the given key from the store and return its data, or nil if no record was found.
 func (s *Store) Get(key string) []byte {
 	var value []byte
 	s.client.View(func(tx *bbolt.Tx) error {
@@ -114,7 +78,7 @@ func (s *Store) Get(key string) []byte {
 	return value
 }
 
-// Count get the number of keys in the store
+// Count will return the number of objects in the store.
 func (s *Store) Count() int {
 	var count int
 	s.client.View(func(tx *bbolt.Tx) error {
@@ -125,7 +89,7 @@ func (s *Store) Count() int {
 	return count
 }
 
-// ForEach iterate over each object in the store
+// ForEach will invoke cb for each object in the store with the key, index, and the value for that object
 func (s *Store) ForEach(cb func(key string, idx int, value []byte) error) error {
 	return s.client.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
@@ -138,7 +102,7 @@ func (s *Store) ForEach(cb func(key string, idx int, value []byte) error) error 
 	})
 }
 
-// Write write a new object to the store
+// Write saves a new object or updates an existing object in the store
 func (s *Store) Write(key string, value []byte) error {
 	return s.client.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
@@ -147,7 +111,7 @@ func (s *Store) Write(key string, value []byte) error {
 	})
 }
 
-// Truncate remove all keys from the store
+// Truncate will remove all keys from the store
 func (s *Store) Truncate() error {
 	return s.client.Update(func(tx *bbolt.Tx) error {
 		if err := tx.DeleteBucket(s.bucket.name); err != nil {
@@ -162,7 +126,7 @@ func (s *Store) Truncate() error {
 	})
 }
 
-// Delete delete a specific object from the store
+// Delete will delete the object with the specified key from the store
 func (s *Store) Delete(key string) error {
 	return s.client.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
@@ -171,7 +135,7 @@ func (s *Store) Delete(key string) error {
 	})
 }
 
-// CopyTo make a hot copy of the store to the given writer
+// CopyTo will make a copy of the store to the specified writer without blocking the store
 func (s *Store) CopyTo(writer io.Writer) error {
 	return s.client.View(func(tx *bbolt.Tx) error {
 		s.log.Debug("Copy %s", s.Name)
@@ -179,10 +143,10 @@ func (s *Store) CopyTo(writer io.Writer) error {
 	})
 }
 
-// BackupTo make a hot backup of the store and save it to the specified file
-func (s *Store) BackupTo(file string) error {
+// BackupTo will make a copy of the store to the specified file file
+func (s *Store) BackupTo(filePath string) error {
 	return s.client.View(func(tx *bbolt.Tx) error {
-		s.log.Debug("Backup %s -> %s", s.Name, file)
-		return tx.CopyFile(file, 0644)
+		s.log.Debug("Backup %s -> %s", s.Name, filePath)
+		return tx.CopyFile(filePath, 0644)
 	})
 }
