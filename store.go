@@ -1,10 +1,11 @@
 /*
-Package store provides a simple interface for working with the key-value store bbolt.
+Package store provides a fast and efficient file-based key-value store.
 */
 package store
 
 import (
 	"io"
+	"io/fs"
 	"path"
 	"time"
 
@@ -18,25 +19,47 @@ type bucket struct {
 
 // Store describes a store object
 type Store struct {
-	Name   string
-	path   string
-	bucket bucket
-	client *bbolt.DB
-	log    *logtic.Source
+	Name    string
+	Options Options
+	path    string
+	bucket  bucket
+	client  *bbolt.DB
+	log     *logtic.Source
+}
+
+// Options describes options for creating a new store
+type Options struct {
+	Mode      fs.FileMode // Defaults to 0644
+	Extension string      // Defaults to .db
 }
 
 // New will create or open a store with the given store name at the specified data directory.
-func New(dataDir string, storeName string) (*Store, error) {
+// Options may be nil and the defaults will be used.
+func New(dataDir string, storeName string, options *Options) (*Store, error) {
+	o := Options{
+		Mode:      0644,
+		Extension: ".db",
+	}
+	if options != nil {
+		if options.Extension != "" {
+			o.Extension = options.Extension
+		}
+		if options.Mode > 0 {
+			o.Mode = options.Mode
+		}
+	}
+
 	s := Store{
-		path: path.Join(dataDir, storeName+".db"),
+		path: path.Join(dataDir, storeName+o.Extension),
 		Name: storeName,
 		bucket: bucket{
 			name: []byte(storeName),
 		},
-		log: logtic.Connect("store(" + storeName + ")"),
+		log:     logtic.Connect("store(" + storeName + ")"),
+		Options: o,
 	}
 
-	client, err := bbolt.Open(s.path, 0644, &bbolt.Options{Timeout: 1 * time.Second})
+	client, err := bbolt.Open(s.path, o.Mode, &bbolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		s.log.Error("Error opening store '%s': %s", s.path, err.Error())
 		return nil, err
@@ -59,7 +82,7 @@ func New(dataDir string, storeName string) (*Store, error) {
 	return &s, nil
 }
 
-// Close will close the store
+// Close will close the store. This may block if there are any ongoing writes.
 func (s *Store) Close() {
 	if s.client != nil {
 		s.client.Close()
@@ -126,7 +149,7 @@ func (s *Store) Truncate() error {
 	})
 }
 
-// Delete will delete the object with the specified key from the store
+// Delete will delete the object with the specified key from the store. If they key does not exist it does nothing.
 func (s *Store) Delete(key string) error {
 	return s.client.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(s.bucket.name)
@@ -143,10 +166,11 @@ func (s *Store) CopyTo(writer io.Writer) error {
 	})
 }
 
-// BackupTo will make a copy of the store to the specified file file
+// BackupTo will make a copy of the store to the specified file path. The file will have the same mode as used when the
+// store was created as specified in the options.
 func (s *Store) BackupTo(filePath string) error {
 	return s.client.View(func(tx *bbolt.Tx) error {
 		s.log.Debug("Backup %s -> %s", s.Name, filePath)
-		return tx.CopyFile(filePath, 0644)
+		return tx.CopyFile(filePath, s.Options.Mode)
 	})
 }

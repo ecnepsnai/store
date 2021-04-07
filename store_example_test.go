@@ -7,7 +7,10 @@ import (
 )
 
 func ExampleNew() {
-	store, err := store.New("/path/to/your/data/dir", "StoreName")
+	store, err := store.New("/path/to/your/data/dir", "StoreName", &store.Options{
+		Extension: ".dat",
+		Mode:      0600,
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -17,57 +20,100 @@ func ExampleNew() {
 }
 
 func ExampleStore_Get() {
-	var store *store.Store // Assumes you've already opened a store, see store.New() for an example
+	store, err := store.New(tmpDir, "ExampleGet", nil)
+	if err != nil {
+		panic(err)
+	}
+	defer store.Close()
+
+	store.Write("key1", []byte("value1"))
 
 	value := store.Get("key1")
 	if value == nil {
-		// No object with key 'key1'
+		panic("No object with key")
 	}
+
+	fmt.Printf("Value: %s\n", value)
+	// output: Value: value1
 }
 
 func ExampleStore_Count() {
-	var store *store.Store // Assumes you've already opened a store, see store.New() for an example
+	store, err := store.New(tmpDir, "ExampleCount", nil)
+	if err != nil {
+		panic(err)
+	}
+	defer store.Close()
+
+	store.Write("key1", []byte("value1"))
 
 	count := store.Count()
-	fmt.Printf("Object: %d\n", count)
+	fmt.Printf("Count: %d\n", count)
+	// output: Count: 1
 }
 
 func ExampleStore_ForEach() {
-	var store *store.Store // Assumes you've already opened a store, see store.New() for an example
+	store, err := store.New(tmpDir, "ExampleForEach", nil)
+	if err != nil {
+		panic(err)
+	}
+	defer store.Close()
 
-	count := 0
+	store.Write("key1", []byte("value1"))
+	store.Write("key2", []byte("value2"))
+	store.Write("key3", []byte("value3"))
+
 	store.ForEach(func(key string, idx int, value []byte) error {
-		count++
+		fmt.Printf("%s: %s\n", key, value)
 		return nil
 	})
-
-	fmt.Printf("Object: %d\n", count)
+	// output: key1: value1
+	// key2: value2
+	// key3: value3
 }
 
 func ExampleStore_Write() {
-	var store *store.Store // Assumes you've already opened a store, see store.New() for an example
-
-	if err := store.Write("key1", []byte("value1")); err != nil {
+	store, err := store.New(tmpDir, "ExampleWrite", nil)
+	if err != nil {
 		panic(err)
 	}
+	defer store.Close()
 
-	if err := store.Write("key1", []byte("value2")); err != nil {
-		panic(err)
-	}
+	store.Write("key1", []byte("value1"))
+	store.Write("key2", []byte("value2"))
 }
 
 func ExampleStore_Truncate() {
-	var store *store.Store // Assumes you've already opened a store, see store.New() for an example
+	store, err := store.New(tmpDir, "ExampleTruncate", nil)
+	if err != nil {
+		panic(err)
+	}
+	defer store.Close()
+
+	store.Write("key1", []byte("value1"))
+	fmt.Printf("Count Before: %d\n", store.Count())
 
 	if err := store.Truncate(); err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("Count After: %d\n", store.Count())
+	// output: Count Before: 1
+	// Count After: 0
 }
 
 func ExampleStore_Delete() {
-	var store *store.Store // Assumes you've already opened a store, see store.New() for an example
-
-	if err := store.Delete("key1"); err != nil {
+	store, err := store.New(tmpDir, "ExampleDelete", nil)
+	if err != nil {
 		panic(err)
 	}
+	defer store.Close()
+
+	store.Write("key1", []byte("value1"))
+	fmt.Printf("Value Before: %s\n", store.Get("key1"))
+
+	store.Delete("key1")
+	fmt.Printf("Value After: %s\n", store.Get("key1"))
+
+	// output: Value Before: value1
+	// Value After:
 }

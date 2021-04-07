@@ -35,17 +35,53 @@ func TestMain(m *testing.M) {
 func TestNew(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestNew")
+	store, err := store.New(tmpDir, "TestNew", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
 	defer store.Close()
 }
 
+func TestNewExtension(t *testing.T) {
+	t.Parallel()
+
+	store, err := store.New(tmpDir, "TestNewExtension", &store.Options{
+		Extension: ".dat",
+	})
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	store.Close()
+
+	if _, err := os.Stat(path.Join(tmpDir, "TestNewExtension.dat")); err != nil {
+		t.Fatalf("Error stating file: %s", err.Error())
+	}
+}
+
+func TestNewMode(t *testing.T) {
+	t.Parallel()
+
+	store, err := store.New(tmpDir, "TestNewMode", &store.Options{
+		Mode: 0600,
+	})
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	store.Close()
+
+	info, err := os.Stat(path.Join(tmpDir, "TestNewMode.db"))
+	if err != nil {
+		t.Fatalf("Error stating file: %s", err.Error())
+	}
+	if info.Mode() != 0600 {
+		t.Fatalf("Incorrect file mode. Expected %d got %d", 0600, info.Mode())
+	}
+}
+
 func TestWrite(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestWrite")
+	store, err := store.New(tmpDir, "TestWrite", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -59,7 +95,7 @@ func TestWrite(t *testing.T) {
 func TestGet(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestGet")
+	store, err := store.New(tmpDir, "TestGet", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -84,7 +120,7 @@ func TestGet(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestUpdate")
+	store, err := store.New(tmpDir, "TestUpdate", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -123,7 +159,7 @@ func TestUpdate(t *testing.T) {
 func TestDelete(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestDelete")
+	store, err := store.New(tmpDir, "TestDelete", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -157,7 +193,7 @@ func TestDelete(t *testing.T) {
 func TestCount(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestCount")
+	store, err := store.New(tmpDir, "TestCount", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -175,7 +211,7 @@ func TestCount(t *testing.T) {
 func TestForeach(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestForeach")
+	store, err := store.New(tmpDir, "TestForeach", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -199,7 +235,7 @@ func TestForeach(t *testing.T) {
 func TestForeachError(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestForeachError")
+	store, err := store.New(tmpDir, "TestForeachError", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -220,7 +256,7 @@ func TestForeachError(t *testing.T) {
 func TestTruncate(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestTruncate")
+	store, err := store.New(tmpDir, "TestTruncate", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -246,7 +282,7 @@ func TestTruncate(t *testing.T) {
 func TestCopyTo(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestCopyTo")
+	store, err := store.New(tmpDir, "TestCopyTo", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -262,13 +298,24 @@ func TestCopyTo(t *testing.T) {
 func TestBackupTo(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestBackupTo")
+	store, err := store.New(tmpDir, "TestBackupTo", &store.Options{
+		Mode: 0600,
+	})
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
 	defer store.Close()
 
-	if err := store.BackupTo(path.Join(tmpDir, "store.backup")); err != nil {
+	backupPath := path.Join(tmpDir, "store.backup")
+	if err := store.BackupTo(backupPath); err != nil {
 		t.Fatalf("Error copying store to file: %s", err.Error())
+	}
+
+	info, err := os.Stat(backupPath)
+	if err != nil {
+		t.Fatalf("Error stating file: %s", err.Error())
+	}
+	if info.Mode() != 0600 {
+		t.Fatalf("Incorrect file mode. Expected %d got %d", 0600, info.Mode())
 	}
 }
