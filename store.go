@@ -55,7 +55,7 @@ func New(dataDir string, storeName string, options *Options) (*Store, error) {
 		bucket: bucket{
 			name: []byte(storeName),
 		},
-		log:     logtic.Connect("store(" + storeName + ")"),
+		log:     logtic.Log.Connect("store(" + storeName + ")"),
 		Options: o,
 	}
 
