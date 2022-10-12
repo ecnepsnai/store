@@ -29,16 +29,18 @@ type Store struct {
 
 // Options describes options for creating a new store
 type Options struct {
-	Mode      fs.FileMode // Defaults to 0644
-	Extension string      // Defaults to .db
+	Mode       fs.FileMode // Defaults to 0644
+	Extension  string      // Defaults to .db
+	BucketName string      // Defaults to the store name
 }
 
 // New will create or open a store with the given store name at the specified data directory.
 // Options may be nil and the defaults will be used.
 func New(dataDir string, storeName string, options *Options) (*Store, error) {
 	o := Options{
-		Mode:      0644,
-		Extension: ".db",
+		Mode:       0644,
+		Extension:  ".db",
+		BucketName: storeName,
 	}
 	if options != nil {
 		if options.Extension != "" {
@@ -47,13 +49,16 @@ func New(dataDir string, storeName string, options *Options) (*Store, error) {
 		if options.Mode > 0 {
 			o.Mode = options.Mode
 		}
+		if options.BucketName != "" {
+			o.BucketName = options.BucketName
+		}
 	}
 
 	s := Store{
 		path: path.Join(dataDir, storeName+o.Extension),
 		Name: storeName,
 		bucket: bucket{
-			name: []byte(storeName),
+			name: []byte(o.BucketName),
 		},
 		log:     logtic.Log.Connect("store(" + storeName + ")"),
 		Options: o,

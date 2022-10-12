@@ -3,39 +3,18 @@ package store_test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/ecnepsnai/store"
+	"go.etcd.io/bbolt"
 )
-
-var tmpDir string
-
-func testSetup() {
-	tmp, err := ioutil.TempDir("", "store")
-	if err != nil {
-		panic(err)
-	}
-	tmpDir = tmp
-}
-
-func testTeardown() {
-	os.RemoveAll(tmpDir)
-}
-
-func TestMain(m *testing.M) {
-	testSetup()
-	retCode := m.Run()
-	testTeardown()
-	os.Exit(retCode)
-}
 
 func TestNew(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestNew", nil)
+	store, err := store.New(t.TempDir(), "TestNew", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -44,6 +23,8 @@ func TestNew(t *testing.T) {
 
 func TestNewExtension(t *testing.T) {
 	t.Parallel()
+
+	tmpDir := t.TempDir()
 
 	store, err := store.New(tmpDir, "TestNewExtension", &store.Options{
 		Extension: ".dat",
@@ -60,6 +41,8 @@ func TestNewExtension(t *testing.T) {
 
 func TestNewMode(t *testing.T) {
 	t.Parallel()
+
+	tmpDir := t.TempDir()
 
 	store, err := store.New(tmpDir, "TestNewMode", &store.Options{
 		Mode: 0600,
@@ -81,7 +64,7 @@ func TestNewMode(t *testing.T) {
 func TestWrite(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestWrite", nil)
+	store, err := store.New(t.TempDir(), "TestWrite", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -95,7 +78,7 @@ func TestWrite(t *testing.T) {
 func TestGet(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestGet", nil)
+	store, err := store.New(t.TempDir(), "TestGet", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -120,7 +103,7 @@ func TestGet(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestUpdate", nil)
+	store, err := store.New(t.TempDir(), "TestUpdate", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -159,7 +142,7 @@ func TestUpdate(t *testing.T) {
 func TestDelete(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestDelete", nil)
+	store, err := store.New(t.TempDir(), "TestDelete", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -193,7 +176,7 @@ func TestDelete(t *testing.T) {
 func TestCount(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestCount", nil)
+	store, err := store.New(t.TempDir(), "TestCount", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -211,7 +194,7 @@ func TestCount(t *testing.T) {
 func TestForeach(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestForeach", nil)
+	store, err := store.New(t.TempDir(), "TestForeach", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -235,7 +218,7 @@ func TestForeach(t *testing.T) {
 func TestForeachError(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestForeachError", nil)
+	store, err := store.New(t.TempDir(), "TestForeachError", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -256,7 +239,7 @@ func TestForeachError(t *testing.T) {
 func TestTruncate(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestTruncate", nil)
+	store, err := store.New(t.TempDir(), "TestTruncate", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -282,7 +265,7 @@ func TestTruncate(t *testing.T) {
 func TestCopyTo(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestCopyTo", nil)
+	store, err := store.New(t.TempDir(), "TestCopyTo", nil)
 	if err != nil {
 		t.Fatalf("Error opening store: %s", err.Error())
 	}
@@ -298,7 +281,7 @@ func TestCopyTo(t *testing.T) {
 func TestBackupTo(t *testing.T) {
 	t.Parallel()
 
-	store, err := store.New(tmpDir, "TestBackupTo", &store.Options{
+	store, err := store.New(t.TempDir(), "TestBackupTo", &store.Options{
 		Mode: 0600,
 	})
 	if err != nil {
@@ -306,7 +289,7 @@ func TestBackupTo(t *testing.T) {
 	}
 	defer store.Close()
 
-	backupPath := path.Join(tmpDir, "store.backup")
+	backupPath := path.Join(t.TempDir(), "store.backup")
 	if err := store.BackupTo(backupPath); err != nil {
 		t.Fatalf("Error copying store to file: %s", err.Error())
 	}
@@ -317,5 +300,39 @@ func TestBackupTo(t *testing.T) {
 	}
 	if info.Mode() != 0600 {
 		t.Fatalf("Incorrect file mode. Expected %d got %d", 0600, info.Mode())
+	}
+}
+
+func TestDifferentBucketName(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+
+	store, err := store.New(tmpDir, "StoreName", &store.Options{
+		BucketName: "BucketName",
+	})
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	store.Close()
+
+	db, err := bbolt.Open(path.Join(tmpDir, "StoreName.db"), 0644, nil)
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer db.Close()
+	err = db.View(func(tx *bbolt.Tx) error {
+		exBucket := tx.Bucket([]byte("BucketName"))
+		if exBucket == nil {
+			return fmt.Errorf("expected bucket not found")
+		}
+		unexBucket := tx.Bucket([]byte("StoreName"))
+		if unexBucket != nil {
+			return fmt.Errorf("unexpected bucket found")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("%s", err.Error())
 	}
 }

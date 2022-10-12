@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/ecnepsnai/store"
 )
@@ -20,6 +21,8 @@ func ExampleNew() {
 }
 
 func ExampleStore_Get() {
+	tmpDir, _ := os.MkdirTemp("", "store")
+	defer os.RemoveAll(tmpDir)
 	store, err := store.New(tmpDir, "ExampleGet", nil)
 	if err != nil {
 		panic(err)
@@ -38,6 +41,8 @@ func ExampleStore_Get() {
 }
 
 func ExampleStore_Count() {
+	tmpDir, _ := os.MkdirTemp("", "store")
+	defer os.RemoveAll(tmpDir)
 	store, err := store.New(tmpDir, "ExampleCount", nil)
 	if err != nil {
 		panic(err)
@@ -52,6 +57,8 @@ func ExampleStore_Count() {
 }
 
 func ExampleStore_ForEach() {
+	tmpDir, _ := os.MkdirTemp("", "store")
+	defer os.RemoveAll(tmpDir)
 	store, err := store.New(tmpDir, "ExampleForEach", nil)
 	if err != nil {
 		panic(err)
@@ -72,6 +79,8 @@ func ExampleStore_ForEach() {
 }
 
 func ExampleStore_Write() {
+	tmpDir, _ := os.MkdirTemp("", "store")
+	defer os.RemoveAll(tmpDir)
 	store, err := store.New(tmpDir, "ExampleWrite", nil)
 	if err != nil {
 		panic(err)
@@ -83,6 +92,8 @@ func ExampleStore_Write() {
 }
 
 func ExampleStore_Truncate() {
+	tmpDir, _ := os.MkdirTemp("", "store")
+	defer os.RemoveAll(tmpDir)
 	store, err := store.New(tmpDir, "ExampleTruncate", nil)
 	if err != nil {
 		panic(err)
@@ -102,6 +113,8 @@ func ExampleStore_Truncate() {
 }
 
 func ExampleStore_Delete() {
+	tmpDir, _ := os.MkdirTemp("", "store")
+	defer os.RemoveAll(tmpDir)
 	store, err := store.New(tmpDir, "ExampleDelete", nil)
 	if err != nil {
 		panic(err)
