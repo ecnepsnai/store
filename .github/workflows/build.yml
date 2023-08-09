@@ -1,4 +1,4 @@
-name: Go
+name: "Build & Test"
 
 on:
   push:
@@ -13,12 +13,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # pin@v3.1.0
+      - uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # pin@v3.3.0
+        uses: actions/setup-go@v3
         with:
-          go-version: 1.19.2
+          go-version: latest
 
       - name: Build
         run: go build -v ./...
