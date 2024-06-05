@@ -336,3 +336,43 @@ func TestDifferentBucketName(t *testing.T) {
 		t.Fatalf("%s", err.Error())
 	}
 }
+
+func TestTx(t *testing.T) {
+	t.Parallel()
+
+	s, err := store.New(t.TempDir(), "TestTx", nil)
+	if err != nil {
+		t.Fatalf("Error opening store: %s", err.Error())
+	}
+	defer s.Close()
+
+	err = s.BeginWrite(func(tx *store.Tx) error {
+		if err := tx.Write("key1", []byte("value1")); err != nil {
+			return err
+		}
+
+		value := tx.Get("key1")
+		if string(value) != "value1" {
+			return fmt.Errorf("unexpected value %s", value)
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Error performing write transaction: %s", err.Error())
+	}
+
+	err = s.BeginWrite(func(tx *store.Tx) error {
+		if err := tx.Delete("key1"); err != nil {
+			return err
+		}
+		return fmt.Errorf("pass")
+	})
+	if err != nil && err.Error() != "pass" {
+		t.Fatalf("Error performing write transaction: %s", err.Error())
+	}
+
+	if s.Get("key1") == nil {
+		t.Fatalf("Failed transaction was not rolled back")
+	}
+}

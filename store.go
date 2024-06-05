@@ -1,6 +1,4 @@
-/*
-Package store provides a fast and efficient file-based key-value store.
-*/
+// Package store provides a fast and efficient file-based key-value store.
 package store
 
 import (
@@ -177,5 +175,54 @@ func (s *Store) BackupTo(filePath string) error {
 	return s.client.View(func(tx *bbolt.Tx) error {
 		s.log.Debug("Backup %s -> %s", s.Name, filePath)
 		return tx.CopyFile(filePath, s.Options.Mode)
+	})
+}
+
+// Tx describes a transaction
+type Tx struct {
+	tx     *bbolt.Tx
+	bucket *bbolt.Bucket
+	name   string
+	log    *logtic.Source
+}
+
+// Get will return the value associated with the given key, or nil if it does not exist.
+func (tx *Tx) Get(key string) []byte {
+	tx.log.Debug("Get %s.%s", tx.name, key)
+	return tx.bucket.Get([]byte(key))
+}
+
+// Write will add or update the value for the given key.
+func (tx *Tx) Write(key string, value []byte) error {
+	tx.log.Debug("Set %s.%s", tx.name, key)
+	return tx.bucket.Put([]byte(key), value)
+}
+
+// Delete will remove the given key if it exists.
+func (tx *Tx) Delete(key string) error {
+	tx.log.Debug("Delete %s.%s", tx.name, key)
+	return tx.bucket.Delete([]byte(key))
+}
+
+// BeginWrite will begin a new read-write transaction. While this transaction is open all other write or read operations
+// will be blocked until complete. The transaction is automatically committed when the write function returns without
+// an error. If an error is returned, all changes are rolled back.
+func (s *Store) BeginWrite(write func(tx *Tx) error) error {
+	return s.client.Update(func(boltTx *bbolt.Tx) error {
+		tx := &Tx{
+			tx:     boltTx,
+			bucket: boltTx.Bucket(s.bucket.name),
+			name:   s.Name,
+			log:    s.log,
+		}
+
+		if err := write(tx); err != nil {
+			s.log.PError("Transaction error, rolling back", map[string]interface{}{
+				"error": err.Error(),
+			})
+			return err
+		}
+		s.log.Debug("Commit %s", tx.name)
+		return nil
 	})
 }

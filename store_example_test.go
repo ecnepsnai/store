@@ -130,3 +130,26 @@ func ExampleStore_Delete() {
 	// output: Value Before: value1
 	// Value After:
 }
+
+func ExampleStore_BeginWrite() {
+	tmpDir, _ := os.MkdirTemp("", "store")
+	defer os.RemoveAll(tmpDir)
+	s, err := store.New(tmpDir, "ExampleBeginWrite", nil)
+	if err != nil {
+		panic(err)
+	}
+	defer s.Close()
+
+	err = s.BeginWrite(func(tx *store.Tx) error {
+		if err := s.Write("key1", []byte("value1")); err != nil {
+			return err
+		}
+		if err := s.Write("key2", []byte("value2")); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+}
